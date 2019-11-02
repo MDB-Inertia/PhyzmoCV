@@ -55,38 +55,57 @@ def track_objects_gcs(gcs_uri):
 
     result = operation.result(timeout=300)
     print('\nFinished processing.\n')
+    
 
-    # The first result is retrieved because a single video was processed.
-    object_annotations = result.annotation_results[0].object_annotations
+    #Array of JSON data by frame
+    frameData = {"frames": []}
 
     # Get only the first annotation for demo purposes.
     object_annotation = object_annotations[0]
-    # description is in Unicode
-    print(u'Entity description: {}'.format(
-        object_annotation.entity.description))
-    if object_annotation.entity.entity_id:
-        print('Entity id: {}'.format(object_annotation.entity.entity_id))
+    for o in object_annotations:
+        print('Entity id: {}'.format(o.entity.description))
+        print(o.entity.description == 'ball' or o.entity.description == 'basketball')
+        if o.entity.description == 'ball' or o.entity.description == 'basketball':
+            object_annotation = o
+            # description is in Unicode
+            print('Entity description: {}'.format(
+                object_annotation.entity.description))
+            if object_annotation.entity.entity_id:
+                print('Entity id: {}'.format(object_annotation.entity.entity_id))
 
-    print('Segment: {}s to {}s'.format(
-        object_annotation.segment.start_time_offset.seconds +
-        object_annotation.segment.start_time_offset.nanos / 1e9,
-        object_annotation.segment.end_time_offset.seconds +
-        object_annotation.segment.end_time_offset.nanos / 1e9))
+            print('Segment: {}s to {}s'.format(
+                object_annotation.segment.start_time_offset.seconds +
+                object_annotation.segment.start_time_offset.nanos / 1e9,
+                object_annotation.segment.end_time_offset.seconds +
+                object_annotation.segment.end_time_offset.nanos / 1e9))
 
-    print('Confidence: {}'.format(object_annotation.confidence))
+            print('Confidence: {}'.format(object_annotation.confidence))
+            #video = cv2.VideoWriter('video.avi',-1,1,(1920,1080))
 
-    # Here we print only the bounding box of the first frame in this segment
-    frame = object_annotation.frames[0]
-    box = frame.normalized_bounding_box
-    print('Time offset of the first frame: {}s'.format(
-        frame.time_offset.seconds + frame.time_offset.nanos / 1e9))
-    print('Bounding box position:')
-    print('\tleft  : {}'.format(box.left))
-    print('\ttop   : {}'.format(box.top))
-    print('\tright : {}'.format(box.right))
-    print('\tbottom: {}'.format(box.bottom))
-    print('\n')
-    # [END video_object_tracking_gcs_beta]
+            # Here we print only the bounding box of the first frame in this segment
+            for frame in object_annotation.frames:
+                box = frame.normalized_bounding_box
+                time = frame.time_offset.seconds + frame.time_offset.nanos / 1e9
+                print('Time offset of the first frame: {}s'.format(time))
+                """print('Bounding box position:')
+                print('\tleft  : {}'.format(box.left))
+                print('\ttop   : {}'.format(box.top))
+                print('\tright : {}'.format(box.right))
+                print('\tbottom: {}'.format(box.bottom))
+                print('\n')"""
+
+                frameData["frames"].append({
+                    "time" : time,
+                    "left" : box.left,
+                    "top" : box.top,
+                    "right" : box.right,
+                    "bottom" : box.bottom
+                })
+
+        # [END video_object_tracking_beta]
+    
+    with open("frameData.json", "w") as write_file:
+        json.dump(frameData, write_file)
     return object_annotations
 
 def track_objects(path):
