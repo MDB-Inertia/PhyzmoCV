@@ -18,12 +18,14 @@ class DataUtils:
         self.jsonData = self.getJSON(jsonString) #jsonData shoild be an array of dictionarys
 
         self.normalized_velocity = []
+        self.normalized_acce = []
 
         self.findDataPoints()
         self.findDistance()
         self.findVelocity()
         self.findAcceleration()
-        self.findMovingAverge()
+        self.findMovingAverageVelocity()
+        #self.findMovingAverageAcce()
 
 
 
@@ -78,15 +80,41 @@ class DataUtils:
             else:
                 self.acceleration.append((self.velocity[i] - self.velocity[i - 1]) / pow((self.time[i] - self.time[i - 1]), 2))
 
-    def findMovingAverge(self):
-        x = 10
-        for i in range(x + 1):
-            self.normalized_velocity.append(self.velocity[i])
-        for i in range(x + 1, len(self.velocity) - x):
-            anjali = sum([self.velocity[val] for val in range(i-x, i+x+1)]) // (2 * x + 1)
+    def findMovingAverageVelocity(self):
+        x = 100
+        # for i in range(x + 1):
+        #     athena = sum(self.vel)
+        #     self.normalized_velocity.append(self.velocity[i])
+        # for i in range(x + 1, len(self.velocity) - x):
+        #     anjali = sum([self.velocity[val] for val in range(i-x, i+x+1)]) / (2 * x + 1)
+        #     print(anjali)
+        #     self.normalized_velocity.append(anjali)
+        # for i in range(len(self.velocity) - x, len(self.velocity)):
+        #     self.normalized_velocity.append(self.velocity[i])
+        self.normalized_velocity.append(self.velocity[0])
+        for i in range(1 , len(self.velocity)):
+            front = min(x, i)
+            back = min(x, len(self.velocity) - (i + 1))
+            anjali = sum([self.velocity[val] for val in range(i - front, i + back + 1)]) / (front + back + 1)
             self.normalized_velocity.append(anjali)
-        for i in range(len(self.velocity) - x, len(self.velocity)+1):
-            self.normalized_velocity.append(self.velocity[i])
+
+        def findMovingAverageAcce(self):
+            x = 10
+            # for i in range(x + 1):
+            #     athena = sum(self.vel)
+            #     self.normalized_velocity.append(self.velocity[i])
+            # for i in range(x + 1, len(self.velocity) - x):
+            #     anjali = sum([self.velocity[val] for val in range(i-x, i+x+1)]) / (2 * x + 1)
+            #     print(anjali)
+            #     self.normalized_velocity.append(anjali)
+            # for i in range(len(self.velocity) - x, len(self.velocity)):
+            #     self.normalized_velocity.append(self.velocity[i])
+            self.normalized_acce.append(self.acceleration[0])
+            for i in range(1 , len(self.acceleration)):
+                front = min(x, i)
+                back = min(x, len(self.acceleration) - (i + 1))
+                anjali = sum([self.acceleration[val] for val in range(i - front, i + back + 1)]) / (front + back + 1)
+                self.normalized_acce.append(anjali)
 
 
 
@@ -98,7 +126,9 @@ ref_list = [[0.121, 0.215], [0.9645, 0.446], 0.60]
 
 test = DataUtils(json_string, ref_list)
 
-print(len(test.time))
+#print(len(test.time))
+print('time', len(test.time), "velo", len(test.normalized_velocity))
 plt.plot(test.time, test.normalized_velocity)
-print(test.velocity)
+
+#print(test.velocity)
 plt.show()
