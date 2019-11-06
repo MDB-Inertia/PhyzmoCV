@@ -376,6 +376,18 @@ def track_objects_gcs_all(gcs_uri):
 
     return object_annotations
 
+def get_frames(objectsData, obj_descriptions):
+    """ Returns a dictionary {'frames' : [{'time': 0, 'left': , ...} {} {} ...]}
+        Takes objectsData and combines all frames for all object descriptions in the array obj_descriptions (selected by user)
+        Ex: get_frames(objectsData from track_objects_gcs_all, ['ball', 'basketball', 'fruits']) """
+
+    frameData = {"frames": []}
+    for obj in obj_descriptions:
+        if obj in objectsData:
+            frameData['frames'] += objectsData[obj]
+    frameData['frames'] = sorted(frameData['frames'], key = lambda i: i['time'])
+    return frameData
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=__doc__,
