@@ -61,6 +61,7 @@ def track_objects_gcs(gcs_uri):
     frameData = {"frames": []}
 
     # Get only the first annotation for demo purposes.
+
     object_annotation = object_annotations[0]
     for o in object_annotations:
         print('Entity id: {}'.format(o.entity.description))
@@ -177,7 +178,7 @@ def track_objects(path):
     for o in object_annotations:
         print('Entity id: {}'.format(o.entity.description))
         print(o.entity.description == 'ball' or o.entity.description == 'basketball')
-        if o.entity.description == 'ball' or o.entity.description == 'basketball':
+        if o.entity.description in ['ball', 'basketball', 'orange', 'fruit', 'lemon', 'food']:
             object_annotation = o
             # description is in Unicode
             print('Entity description: {}'.format(
@@ -239,7 +240,141 @@ def track_objects(path):
     return object_annotations
 
 
+def track_objects_all(path):
+    # [START video_object_tracking_beta]
+    """Object Tracking."""
+    """Creates JSON with keys being the object descriptions and values being an array of frames"""
+    from google.cloud import videointelligence_v1p2beta1 as videointelligence
 
+    video_client = videointelligence.VideoIntelligenceServiceClient()
+    features = [videointelligence.enums.Feature.OBJECT_TRACKING]
+    with io.open(path, 'rb') as file:
+        input_content = file.read()
+    try:
+        #if not os.path.exists('data'):
+        os.makedirs('data')
+    except OSError:
+        print ('Error: Creating directory of data')
+    # When everything done, release the capture
+    
+    # It is recommended to use location_id as 'us-east1' for the best latency
+    # due to different types of processors used in this region and others.
+    operation = video_client.annotate_video(
+        input_content=input_content, features=features, location_id='us-east1')
+    print('\nProcessing video for object annotations.')
+
+    result = operation.result(timeout=300)
+    print('\nFinished processing.\n')
+    # The first result is retrieved because a single video was processed.
+    object_annotations = result.annotation_results[0].object_annotations
+
+    #Array of JSON data by frame
+    objectsData = {}
+
+    # Get only the first annotation for demo purposes.
+    
+    for object_annotation in object_annotations:
+        print('Entity id: {}'.format(object_annotation.entity.description))
+        # description is in Unicode
+        print('Entity description: {}'.format(
+            object_annotation.entity.description))
+        if object_annotation.entity.entity_id:
+            print('Entity id: {}'.format(object_annotation.entity.entity_id))
+
+        print('Segment: {}s to {}s'.format(
+            object_annotation.segment.start_time_offset.seconds +
+            object_annotation.segment.start_time_offset.nanos / 1e9,
+            object_annotation.segment.end_time_offset.seconds +
+            object_annotation.segment.end_time_offset.nanos / 1e9))
+
+        print('Confidence: {}'.format(object_annotation.confidence))
+        if object_annotation.entity.description not in objectsData:
+            objectsData[object_annotation.entity.description] = []
+        # Here we print only the bounding box of the first frame in this segment
+        for frame in object_annotation.frames:
+            box = frame.normalized_bounding_box
+            time = frame.time_offset.seconds + frame.time_offset.nanos / 1e9
+            print('Time offset of the first frame: {}s'.format(time))
+            objectsData[object_annotation.entity.description].append({
+                "time" : time,
+                "left" : box.left,
+                "top" : box.top,
+                "right" : box.right,
+                "bottom" : box.bottom
+            })
+
+
+    # [END video_object_tracking_beta]
+    for obj in objectsData.keys():
+        objectsData[obj] = sorted(objectsData[obj], key = lambda i: i['time'])
+    print(objectsData.keys())
+    with open("objectsData.json", "w") as write_file:
+        json.dump(objectsData, write_file)
+
+    return object_annotations
+
+def track_objects_gcs_all(gcs_uri):
+    # [START video_object_tracking_gcs_beta]
+    """Object Tracking."""
+    from google.cloud import videointelligence_v1p2beta1 as videointelligence
+
+    # It is recommended to use location_id as 'us-east1' for the best latency
+    # due to different types of processors used in this region and others.
+    video_client = videointelligence.VideoIntelligenceServiceClient()
+    features = [videointelligence.enums.Feature.OBJECT_TRACKING]
+    operation = video_client.annotate_video(
+        input_uri=gcs_uri, features=features, location_id='us-east1')
+    print('\nProcessing video for object annotations.')
+
+    result = operation.result(timeout=300)
+    print('\nFinished processing.\n')
+    # The first result is retrieved because a single video was processed.
+    object_annotations = result.annotation_results[0].object_annotations
+
+    #Array of JSON data by frame
+    objectsData = {}
+
+    # Get only the first annotation for demo purposes.
+    
+    for object_annotation in object_annotations:
+        print('Entity id: {}'.format(object_annotation.entity.description))
+        # description is in Unicode
+        print('Entity description: {}'.format(
+            object_annotation.entity.description))
+        if object_annotation.entity.entity_id:
+            print('Entity id: {}'.format(object_annotation.entity.entity_id))
+
+        print('Segment: {}s to {}s'.format(
+            object_annotation.segment.start_time_offset.seconds +
+            object_annotation.segment.start_time_offset.nanos / 1e9,
+            object_annotation.segment.end_time_offset.seconds +
+            object_annotation.segment.end_time_offset.nanos / 1e9))
+
+        print('Confidence: {}'.format(object_annotation.confidence))
+        if object_annotation.entity.description not in objectsData:
+            objectsData[object_annotation.entity.description] = []
+        # Here we print only the bounding box of the first frame in this segment
+        for frame in object_annotation.frames:
+            box = frame.normalized_bounding_box
+            time = frame.time_offset.seconds + frame.time_offset.nanos / 1e9
+            print('Time offset of the first frame: {}s'.format(time))
+            objectsData[object_annotation.entity.description].append({
+                "time" : time,
+                "left" : box.left,
+                "top" : box.top,
+                "right" : box.right,
+                "bottom" : box.bottom
+            })
+
+
+    # [END video_object_tracking_beta]
+    for obj in objectsData.keys():
+        objectsData[obj] = sorted(objectsData[obj], key = lambda i: i['time']) #sort by time for each object
+    print(objectsData.keys()) # Descriptions for all objects
+    with open("objectsData.json", "w") as write_file:
+        json.dump(objectsData, write_file)
+
+    return object_annotations
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -252,9 +387,17 @@ if __name__ == '__main__':
         'track-objects-gcs', help=track_objects_gcs.__doc__)
     video_object_tracking_gcs_parser.add_argument('gcs_uri')
 
+    video_object_tracking_gcs_all_parser = subparsers.add_parser(
+        'track-objects-gcs-all', help=track_objects_gcs.__doc__)
+    video_object_tracking_gcs_all_parser.add_argument('gcs_uri')
+
     video_object_tracking_parser = subparsers.add_parser(
         'track-objects', help=track_objects.__doc__)
     video_object_tracking_parser.add_argument('path')
+
+    video_object_all_tracking_parser = subparsers.add_parser(
+        'track-objects-all', help=track_objects.__doc__)
+    video_object_all_tracking_parser.add_argument('path')
 
 
     args = parser.parse_args()
@@ -263,3 +406,7 @@ if __name__ == '__main__':
         track_objects_gcs(args.gcs_uri)
     elif args.command == 'track-objects':
         track_objects(args.path)
+    elif args.command == 'track-objects-all':
+        track_objects_all(args.path)
+    elif args.command == 'track-objects-gcs-all':
+        track_objects_gcs_all(args.path)
