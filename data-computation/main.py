@@ -1,7 +1,10 @@
-
+import argparse
+import io
+import os
+from flask import jsonify
 import json
-import matplotlib.pyplot as plt
-
+import logging
+import requests
 
 def get_frames(objectsData, obj_descriptions): #DONE
     """ Returns a dictionary {'frames' : [{'time': 0, 'left': , ...} {} {} ...]}
@@ -20,7 +23,29 @@ def getJSON(jsonString): #DONE
     dict = json.loads(json.dumps(jsonString))
     return dict
 
-def calculate(objectsData, obj_descriptions, ref_list): 
+def calculate(request):
+    objectsDataUri = request.args.get('objectsDataUri', '')
+    if not objectsDataUri:
+        return jsonify({'error': 'objectsDataUri parameter as input is needed'})
+    #logging.info('url: {}'.format(requests.get(objectsDataUri).url))
+    #logging.info('final: {}'.format(requests.get(requests.get(objectsDataUri).url).json()))
+    
+    objectsData = requests.get(objectsDataUri).json()
+    #logging.info("Final Location: " + str(objectsData)
+    
+    obj_descriptions = request.args.get('obj_descriptions', '')
+    if not obj_descriptions:
+        return jsonify({'error': 'obj_descriptions parameter as input is needed'})
+    logging.info('input: {}'.format(type(eval(obj_descriptions))))
+    obj_descriptions = eval(obj_descriptions) 
+    
+    
+    ref_list = request.args.get('ref_list', '')
+    if not ref_list:
+        return jsonify({'error': 'ref_list parameter as input is needed'})
+    logging.info('input: {}'.format(type(eval(ref_list))))
+    ref_list = eval(ref_list)
+    
 #ref_list contains info for SCALING (coordinate1, coordinate2, physical distance betweent the two corrdinates)
     time = []
 
@@ -41,13 +66,11 @@ def calculate(objectsData, obj_descriptions, ref_list):
     findDataPoints(time, coordinates, jsonData)
     findDistance(coordinates, distance_per_frame, total_distance, ref_constant)
     findVelocity(distance_per_frame, velocity, time)
+    findAcceleration(distance_per_frame, acceleration, velocity, time) # Do we want to use normalized velocity for calculations of acceleration - makes normalized acceleration even smoother
 
     findMovingAverageVelocity(normalized_velocity, velocity)
-    findAcceleration(distance_per_frame, acceleration, normalized_velocity, time) # Do we want to use normalized velocity for calculations of acceleration - makes normalized acceleration even smoother
-
     findMovingAverageAcce(normalized_acce, acceleration) # Do we want to use normalized velocity for calculations of acceleration - makes normalized acceleration even smoother
-
-    return {"time": time,
+    data = {"time": time,
             "coordinates": coordinates,
             "total_distance": total_distance,
             "distance_per_frame": distance_per_frame,
@@ -56,6 +79,8 @@ def calculate(objectsData, obj_descriptions, ref_list):
             "acceleration": acceleration,
             "normalized_velocity": normalized_velocity,
             "normalized_acce": normalized_acce}
+    jsonData = json.dumps(data)
+    return jsonData
 
 
 def findDataPoints(time, coordinates, jsonData): #DONE
@@ -96,22 +121,16 @@ def findVelocity(distance_per_frame, velocity, time): #DONE
         if i == 0:
             velocity.append(0) #Velocity might not be zero at the start
         else:
-            if time[i] == time[i-1]: #HACKY FIX TO PREVENT DIVISION BY 0
-                velocity.append(velocity[-1])
-            else:
-                velocity.append(distance_per_frame[i] / (time[i] - time[i - 1]))
+            velocity.append(distance_per_frame[i] / (time[i] - time[i - 1]))
 
-def findAcceleration(distance_per_frame, acceleration, velocity, time): #NEED TO SEE IF WE WANNA USE NORMALIZED VELOCITY TO CALCULATE ACCELERATION
+def findAcceleration(distance_per_frame, acceleration, velocity, time): #DONE
     for i in range(len(distance_per_frame)):
         if i == 0:
             acceleration.append(0) #Velocity might not be zero at the start
         else:
-            if time[i] == time[i-1]: #HACKY FIX TO PREVENT DIVISION BY 0
-                acceleration.append(acceleration[-1])
-            else:
-                acceleration.append((velocity[i] - velocity[i - 1]) / pow((time[i] - time[i - 1]), 2))
+            acceleration.append((velocity[i] - velocity[i - 1]) / pow((time[i] - time[i - 1]), 2))
 
-def findMovingAverageVelocity(normalized_velocity, velocity): #DONE
+def findMovingAverageVelocity(normalized_velocity, velocity):
     x = 100
     # for i in range(x + 1):
     #     athena = sum(self.vel)
@@ -130,8 +149,8 @@ def findMovingAverageVelocity(normalized_velocity, velocity): #DONE
         anjali = sum([velocity[val] for val in range(i - delta, i + delta)]) / (2*delta + 1)
         normalized_velocity.append(anjali)
 
-def findMovingAverageAcce(normalized_acce, acceleration): #NEED TO SEE IF WE WANNA USE NORMALIZED VELOCITY TO CALCULATE ACCELERATION
-    x = 5
+def findMovingAverageAcce(normalized_acce, acceleration):
+    x = 100
     # for i in range(x + 1):
     #     athena = sum(self.vel)
     #     self.normalized_velocity.append(self.velocity[i])
@@ -147,20 +166,3 @@ def findMovingAverageAcce(normalized_acce, acceleration): #NEED TO SEE IF WE WAN
         delta = min(i-front, back-i)
         anjali = sum([acceleration[val] for val in range(i - delta, i + delta)]) / (2*delta + 1)
         normalized_acce.append(anjali)
-
-
-
-
-
-
-ref_list = [[0.121, 0.215], [0.9645, 0.446], 0.60]
-with open('objectsData.json') as json_file:
-    data = json.load(json_file)
-print(data.keys())
-test = calculate(data, ['ball', 'basketball', 'orange', 'fruit', 'lemon', 'food'], ref_list)
-#test = DataUtils(json_string, ref_list)
-
-plt.plot(test['time'], test['normalized_velocity'])
-
-#print(test.velocity)
-plt.show()
